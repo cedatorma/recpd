@@ -1,0 +1,510 @@
+---
+title: "RecPD-Tutorial"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{RecPD-Tutorial}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup, warning=FALSE, message=FALSE}
+#Load the RecPD package:
+#Note this command is used to load the RecPD package during development:
+
+#library(devtools)
+devtools::load_all()
+
+#Alternatively, install the package using library():
+#library(recpd)
+
+
+#Load other packages required for running the examples below:
+library(ape)
+library(picante)
+library(dplyr)
+library(tidyr)
+library(ggpubr)
+library(tibble)
+
+
+```
+
+
+# Overview of RecPD
+
+RecPD requires two components (user provided), a species tree, and a presence/absence matrix of traits mapped to the tips of the tree.
+
+
+To illustrate the different functionalities of RecPD and how to process the metrics it generates, we'll be using  randomly generated phylogenetic trees and presence/absence tip state matrices.
+
+
+## Randomized Trait Distribution Generation - Version 1
+
+The first approach is to begin with a randomly generated species tree of 10 tips.
+```{r tree_gen1, cache=TRUE}
+
+r_tr <- rtree(10)
+
+```
+
+
+The following code chunk provides a function which will generate a matrix of all possible presence/absence feature states on a given tree. Note that this works for a tree of 10 tips, however, this will be computationally unfeasable for trees of larger size (the number of possible presence/absence states combinatorially explodes).
+
+```{r random_dist1, cache=TRUE}
+#A function which generates a matrix of permuted features distributions with given
+#prevalence across N tips:
+feat_rand <- function(tree, prevalence){
+  #Prevalence indicates the total number of tips with a state present
+  
+  #Steps: 
+  #1) Set the tip states as an array of length equal to the number of
+  #tips in the tree, initialized to 0.
+  
+  #2) Generate a set of starting arrays with a single presence states assigned
+  #to successive indicies, stopping after reaching an index position P steps
+  #away from the end of the array.
+  
+  #3) From these starting arrays, repeat the procedure above and iteratatively
+  #add an additional presence state until reaching maximum prevalence.
+  
+  #A helper function to generate the next permutation from a provided vector of
+  #presence/absence states:
+  array_return <- function(a){
+    a_tmp <- NULL
+    a_return <- NULL
+    i <- which(a == 1)
+    
+    for(j in i[length(i)]:length(a)){
+      a_tmp <- a
+      a_tmp[j] <- 1
+      a_return <- rbind(a_return, a_tmp, deparse.level=0)
+    }
+    return(a_return)
+  }
+  
+  l_tmp <- NULL
+  a_tmp <- rep(0, Ntip(tree))
+  names(a_tmp) <- tree$tip.label
+  
+  for(i in 1:(Ntip(tree) - prevalence + 1)){
+    a <- a_tmp
+    a[i] <- 1
+    l_tmp <- rbind(l_tmp, a, deparse.level=0)
+  }
+  
+  n <- 2
+  while(n <= prevalence){
+    for(i in 1:nrow(l_tmp)){
+      l_tmp <- rbind(l_tmp, array_return(l_tmp[i,]), deparse.level=0)
+    }
+    
+    l_tmp <- l_tmp[-which(rowSums(l_tmp) < n),]
+    n <- n + 1
+  }
+  
+  if(is.null(nrow(l_tmp))){
+    l_tmp <- as.matrix(t(l_tmp))
+  }
+  
+  return(l_tmp)
+}
+
+```
+
+
+Next, assign randomized presence/absence trait states to the tips of the species tree. 
+
+```{r dist_gen1, cache=TRUE}
+#Generate a list of randomized tip state/locus presence/absence patterns for a given tree:
+#Do not include prevalence == Ntip(tree)?
+
+pa_l <- data.frame()
+
+for(i in 1:(Ntip(r_tr)-1)){
+  pa_l <- rbind.data.frame(pa_l, data.frame(feat_rand(r_tr, i)))
+}
+
+
+#For testing purposes in other workflows, you can save the random tree &
+#associated randomized trait distribution matrix.
+
+#write.tree(r_tr, './random_tree_10tips.tree')
+#write.table  (pa_l, col.names = TRUE, row.names=FALSE, sep='\t')
+
+```
+
+
+To illustrate the output of RecPD, we'll calculate RecPD for the randomized trait distributions.
+
+```{r recpd_res1, cache=TRUE}
+res <- recpd_calc(r_tr,   #The species tree
+             pa_l,    #The trait presence/absence state matrix, rows = trait stat, columns = corresponding tips of the species tree.
+             option='nn', #Ancestral state reconstruction approach to use ('nn' - default, 'mpr', or 'ace')
+             calc=TRUE    #Calculate RecPD derived metrics? (default = FALSE)
+             )
+
+head(res)
+
+```
+
+
+For each trait, RecPD will produce a data.frame of calculated measures. Primarily what is shown in the console will be the associated metrics calculated for a given feature distribution, and RecPD-derived metrics (if calc == TRUE).
+
+Some useful hidden attributes are also associated with this data.frame, particularly:
+
+- "anc_new" : the final trait evolutionary history reconstructions, with states assigned to tips, internal nodes, and branches of the species phylogenetic tree. These will be used for phylogenetic tree visualizations.
+- "anc_old" : preliminary ancestral state reconstructions.
+- "tree" : the input phylogenetic tree.
+
+```{r cache=TRUE}
+names(attributes(res))
+```
+
+
+Now, visualize the RecPD vs. Faith's PD metrics calculated for each randomized trait distribution:
+
+```{r recpd_res1_compare, cache=TRUE, warning=FALSE, message=FALSE}
+
+#Let's also calculate RecPD using other ancestral reconstruction approaches, MPR, and ACE:
+res_mpr <- recpd_calc(r_tr,
+             pa_l, 
+             option='mpr', 
+             calc=FALSE
+             )
+  
+  
+res_ace <- recpd_calc(r_tr,
+             pa_l, 
+             option='ace', 
+             calc=FALSE
+             )
+
+#Calculate Faith's PD (PD with only vertical descent and loss):
+
+faith <- pd(pa_l, r_tr, include.root=FALSE)$PD/sum(r_tr$edge.length)
+
+#Note that Faith's PD will produce errors for any features with prevalence == 1.
+
+
+#Merge the results together:
+
+res_merge <- res %>% 
+  select(feature, prevalence, recpd, nrecpd) %>%
+  rename('recpd_nn' = 'recpd', 'nrecpd_nn' = 'nrecpd') %>%
+  mutate(recpd_mpr = res_mpr$recpd,
+         nrecpd_mpr = res_mpr$nrecpd,
+         recpd_ace = res_ace$recpd,
+         nrecpd_ace = res_ace$nrecpd) %>%
+  mutate(faith = signif(faith, 3), .after = prevalence)
+```
+
+```{r recpd_res1_compare_plot, cache=TRUE, warning=FALSE, message=FALSE, fig.align='center', fig.dim=c(8,6)}
+
+#Plot the results:
+
+#1) RecPD (NN, MPR, ACE) and Faith's PD vs. feature prevalence:
+plt1 <- ggplot(res_merge %>% 
+                 pivot_longer(c(3,4,6,8)),
+       aes(factor(prevalence), value, color = name)) +
+  geom_abline(intercept = 0, slope = 0.1, lty = 2, lwd = 0.5) +
+  geom_boxplot(outlier.size = 1) +
+  labs(title = 'RecPD (NN, MPR, ACE) & Faith\'s PD',
+       subtitle = '',
+       #subtitle='Tree Size - 10 Tips, 1022 Randomized Gene-Family Distributions',
+       x = 'Prevalence',
+       y = 'Phylogenetic Diversity',
+       color = 'Metric') + 
+  guides(color = guide_legend(nrow=2)) +
+  theme(plot.title = element_text(size=12),
+        axis.text.x = element_text(size=10),
+        axis.text.y = element_text(size=10),
+        axis.title.x = element_text(size=12),
+        axis.title.y = element_text(size=12),
+        legend.title = element_text(size=12),
+        legend.text = element_text(size=12),
+        plot.margin = unit(c(5,10,20,10), 'points'),
+        legend.position = 'bottom')
+
+
+#2) nRecPD (NN, MPR, ACE) - RecPD normalized to Faith's PD -  vs. Prevalence:
+plt2 <- ggplot(res_merge %>% pivot_longer(c(5,7,9)), 
+       aes(factor(prevalence), value, color=name)) + 
+  geom_hline(yintercept=1, lty=2, lwd=0.5) +
+  geom_boxplot(outlier.size=0.5) +
+  labs(title = 'nRecPD (NN, MPR, and ACE)',
+       subtitle = ' nRecPD = RecPD / Faith\'s', 
+       #subtitle='Tree Size - 10 Tips, 1022 Randomized Gene-Family Distributions',
+       x = 'Prevalence',
+       y = 'Normalized RecPD\n(RecPD / Faith\'s PD)',
+       color = 'Metric') + 
+  guides(color = guide_legend(nrow=2)) +
+  theme(plot.title = element_text(size=12),
+        axis.text.x = element_text(size=10),
+        axis.text.y = element_text(size=10),
+        axis.title.x = element_text(size=12),
+        axis.title.y = element_text(size=12),
+        legend.title = element_text(size=12),
+        legend.text = element_text(size=12),
+        plot.margin = unit(c(5,10,20,10), 'points'),
+        legend.position = 'bottom')
+
+
+plt1 + plt2
+
+```
+
+
+
+Now lets use the results of the RecPD to visualize the evolutionary histories of a given trait mapped onto the species tree.
+
+```{r recpd_dists_plot, cache=TRUE, fig.align='center', fig.dim=c(8, 6)}
+#For example, trait distribution 427
+i <- 427
+
+#plt_faith() can be used to visualize evolutionary histories based on vertical ancestry, i.e. inferred using Faith's PD:
+plt3 <- plt_faith(res, i)  + 
+  theme(plot.title=element_text(size=12),
+        plot.margin=unit(c(25,10,25,10), 'points'),
+        legend.title=element_text(size=12),
+        legend.text=element_text(size=12))
+
+
+#plt_recpd() is used for visualizing RecPD feature ancestral lineages of interest: 
+
+#RecPD using Nearest-Neighbours:
+plt4 <- plt_recpd(res, i) +
+  labs(title=paste0('RecPD_nn = ', signif(res$recpd[i], 3))) + 
+  theme(plot.title=element_text(size=12),
+        plot.margin=unit(c(25,10,25,10), 'points'),
+        legend.title=element_text(size=12),
+        legend.text=element_text(size=12))
+
+#RecPD using MPR:
+plt5 <- plt_recpd(res_mpr, i) +
+  labs(title=paste0('RecPD_mpr = ', signif(res_mpr$recpd[i], 3))) + 
+  theme(plot.title=element_text(size=12),
+        plot.margin=unit(c(25,10,25,10), 'points'),
+        legend.title=element_text(size=12),
+        legend.text=element_text(size=12))
+
+#RecPD using ACE
+plt6 <- plt_recpd(res_ace, i) +
+  labs(title=paste0('RecPD_ace = ', signif(res_ace$recpd[i], 3))) + 
+  theme(plot.title=element_text(size=12),
+        plot.margin=unit(c(25,10,25,10), 'points'),
+        legend.title=element_text(size=12),
+        legend.text=element_text(size=12))
+
+
+plts2 <- ggarrange(plt3, plt4, 
+                   #ggplot() + theme_void(), 
+                   plt5, plt6, 
+                   #ggplot() + theme_void(), 
+                   common.legend=TRUE, legend='right')
+
+
+plts2
+
+```
+
+
+Using recpd_cor_calc() to calculate correlations between the evolutionary histories for pair, or subset, of trait distributions.
+
+```{r recpdcor_res, cache=TRUE, warning=FALSE, message=FALSE, fig.align='center', fig.dim = c(8, 6)}
+#Calculate recpd_cor:
+res_cor <- recpd_cor_calc(res, #The results data.frame from recpd_calc()
+               sample(nrow(res), 50) #Randomly sample a subset of features, can be indices or characters.
+               )
+
+#Output will be a feature x feature matrix. Pivot it to a long-format pairwise
+#table, only retaining unique feature pairs, and removing self feature
+#correlations:
+res_cor[upper.tri(res_cor)] <- NA
+
+res_cor_tab <- res_cor %>% 
+  rownames_to_column('feat1') %>% 
+  pivot_longer(2:ncol(.), 
+               names_to = 'feat2', 
+               values_to = 'recpd_cor',
+               values_drop_na = TRUE) %>%
+  filter(feat1 != feat2)
+
+#Find features with high (>= 99.5th percentile) and low correlated (<= 0.5th percentile) ancestral lineages:
+res_cor_filt <- res_cor_tab %>% 
+  arrange(desc(recpd_cor)) %>%
+  mutate(perc = percent_rank(recpd_cor)) %>%
+  filter(perc >= 0.995 | perc <= 0.005) 
+
+#Plotting the RecPD evolutionary histories for a pair of traits on a species phylogeny:
+
+#1) Highly correlated:
+res_cor_max <- res_cor_filt %>% 
+  slice_max(perc)
+
+plt_recpdcor(res,
+             feats = as.character(res_cor_max[1, 1:2]),
+             sep.col = 'grey50',
+             lab = c(res_cor_max$feat1[1], res_cor_max$feat2[1]), 
+             colnames.angle = 0) + 
+  labs(title = paste('RecPDcor =', signif(res_cor[res_cor_max$feat1[1], res_cor_max$feat2[1]], 3)))
+
+#1) Highly un-correlated:
+
+res_cor_min <- res_cor_filt %>% 
+  slice_min(perc) %>% 
+  filter(feat1 > Ntip(r_tr) & feat2 > Ntip(r_tr))
+
+plt_recpdcor(res,
+             feats = as.character(res_cor_min[1, 1:2]),
+             sep.col = 'grey50',
+             lab = c(res_cor_min$feat1[1], res_cor_min$feat2[1]), 
+             colnames.angle = 0) + 
+  labs(title = paste('RecPDcor =', signif(res_cor[res_cor_min$feat1[1], res_cor_min$feat2[1]], 3)))
+
+
+```
+
+
+
+## Randomized Trait Distribution Generation - Version 2
+
+To comprehensively investigate how different ancestral state reconstruction approaches affect RecPD, for larger sized trees, we need to devise a different approach for randomly sampling a number of presence/absence tip assignments, at different levels of prevalence.
+
+```{r rand_dist2, cache=TRUE}
+#A new version of locus_rand2 which allows trees of different sizes to be examined through sampling a certain number of locus distributions:
+#using sample() to select which tips will be present:
+
+feat_rand2 <- function(r_tr, prevalence=1, nsamp=10){
+  tip <- r_tr$tip.label
+  
+  dist <- data.frame()
+  
+  i <- 1
+  check <- NULL
+  while(i <= nsamp){
+    d <- ifelse(tip %in% sample(tip, prevalence), 1, 0)
+    
+    #check if the trait distribution has previously been generated:
+    if(i != 1) check <- which(apply(dist, 1, function(x) identical(as.numeric(x), d)) == TRUE)
+    
+    if(length(check) == 0){
+      dist <- rbind.data.frame(dist, d)
+    
+      i <- i + 1
+      check <- NULL
+    }
+    
+    #Will produce inf if the size of tree tips are <= 200
+    if(length(tip) < 200 & i > factorial(length(tip))/(factorial(length(tip)-prevalence)*factorial(prevalence))) break
+    
+    if(length(tip) >= 200 & prevalence  == length(tip)) break
+    
+  }
+  
+  colnames(dist) <- tip
+  return(dist)
+}
+
+
+
+#A function to generate corresponding randomized trait distributions for each tree:
+dist_gen <- function(tree_l, nsamp=10){
+  #tree_l - a list of randomly generated trees
+  #nsamp - the number of randomly generated locus distributions to sample
+  
+  #A list to store the randomized distributions generated for each tree topology:
+  dist_l <- list()
+  
+  for(i in 1:length(tree_l)){
+    dist_l[[i]] <- list()
+      
+   #To make prevalence comparable between trees of different sizes,
+    #Select the prevalence cutoffs using percentile ranges:
+    prev <- trunc(quantile(1:Ntip(tree_l[[i]]), probs=seq(0.1, 1, 0.1)))
+    
+    
+    for(j in prev){
+      dist_l[[i]] <- rbind.data.frame(dist_l[[i]], 
+                                feat_rand2(tree_l[[i]], prevalence=j, nsamp=nsamp))
+
+    }
+  }
+  
+  return(dist_l)
+}
+```
+
+
+Generate sets of randomized trait distributions for each tree:
+
+```{r dist_gen2, cache=TRUE}
+
+#Generate a list of trees of different size:
+tree_l <- lapply(c(100, 500, 1000), rtree)
+
+#Generate random trait distributions for each tree:
+dist_l <- dist_gen(tree_l, nsamp=10)
+
+#For each tree, calculate RecPD (nn, mpr ace) and faith's PD of each set of randomized trait distributions.
+test_res2 <- data.frame()
+j <- 1 
+
+for(i in 1:length(dist_l)){
+  #Note when just the tree toplogy doesn't change, but the branchlength distributions do, 
+  #do not change the tip state distributions!
+  r_nn <- recpd_calc(tree_l[[i]], dist_l[[j]], option='nn')
+  r_mpr <- recpd_calc(tree_l[[i]], dist_l[[j]], option='mpr')
+  r_ace <- recpd_calc(tree_l[[i]], dist_l[[j]], option='ace')
+
+  faith <- pd(dist_l[[j]], tree_l[[i]], include.root=FALSE)
+
+  ntip <- Ntip(tree_l[[i]])
+
+  
+  test_res2 <- rbind.data.frame(test_res2, 
+                               data.frame(ntip = ntip,
+                                          ntree = j,
+                                          prevalence = faith[,2],
+                                          faith = faith[,1]/sum(tree_l[[i]]$edge.length),
+                                          #faith=faith[,1]/sum(tree_l[[i]][[j]]$edge.length),
+                                          recpd_nn = r_nn$recpd,
+                                          nrecpd_nn = r_nn$nrecpd,
+                                          recpd_mpr = r_mpr$recpd,
+                                          nrecpd_mpr = r_mpr$nrecpd,
+                                          recpd_ace = r_ace$recpd,
+                                          nrecpd_ace = r_ace$nrecpd)
+                               )
+  j <- j + 1
+    
+}
+
+test_res2 <- test_res2 %>% 
+  mutate(ntip=as.numeric(as.character(ntip)))
+
+```
+
+```{r dist_gen2_plot, cache=TRUE, warning=FALSE, message=FALSE, fig.align='center', fig.dim=c(8, 6)}
+
+#RecPD normalized to Faith's using different tree sizes:
+ggplot(test_res2 %>% pivot_longer(c(6,8,10)), 
+       aes(factor(prevalence/ntip), value, color=name)) + 
+  geom_hline(yintercept=1, lwd=0.3, lty=2) +
+  geom_boxplot() + 
+  facet_wrap(~ntip, nrow=1, labeller=labeller(ntip=function(x) paste('Tree Size =', x, 'tips')), scales='free_x') +
+  scale_y_continuous(breaks=c(0.5, 1, 1.5)) +
+  labs(title='RecPD - NN, MPR, ACE Normalized by Faith\'s PD',
+       subtitle='Varying Tree Sizes',
+       x='Trait Prevalence (Proportion of Tips)',
+       y='Normalized RecPD\n(RecPD / Faith\'s PD)',
+       color='Metric') +
+  theme(legend.position='bottom')
+
+
+```

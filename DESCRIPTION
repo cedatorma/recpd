@@ -1,0 +1,41 @@
+Package: recpd
+Title: RecPD
+Version: 0.0.0.9000
+Authors@R: c(
+    person(given = "Cedoljub",
+           family = "Bundalovic-Torma",
+           role = c("aut", "cre"),
+           email = "cedceda@gmail.com",
+           comment = c(ORCID = "0000-0001-8741-4457")),
+    person(given = "David",
+           family = "Guttman",
+           role = "aut",
+           email = "david.guttman@utoronto.ca",
+           comment = c(ORCID = "0000-0001-8479-3869"))
+           )
+Description: Functions for calculation of recombination-adjusted phylogenetic diversity for bacterial features 
+    using ancestral state reconstruction and vizualization of their inferred ancestral lineages on species phylogenetic trees.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.1.1
+Imports: 
+    ape,
+    dplyr,
+    ggplot2,
+    ggtree,
+    graphics,
+    magrittr,
+    phangorn,
+    phytools,
+    picante,
+    RColorBrewer,
+    rlang,
+    stats,
+    stringr,
+    tidytree
+Suggests: 
+    rmarkdown,
+    knitr
+VignetteBuilder: knitr
