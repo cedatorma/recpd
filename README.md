@@ -22,7 +22,7 @@ RecPD also provides functions for:
 
 For a more detailed description of the RecPD methodology, and its
 advantage over using simple Prevalence in measure feature diversity, see
-[Bundalovic-Torma, Guttman
+[Bundalovic-Torma C. & Guttman D.
 (2021)](https://www.biorxiv.org/content/10.1101/2021.10.01.462747v1).
 
 ## Installation

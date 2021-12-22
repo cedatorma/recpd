@@ -23,6 +23,37 @@
 #' @export
 #'
 #' @examples
+#' library(ape)
+#' library(dplyr)
+#'
+#' ##Test case for a randomly generated tree (10 tips) and 10 randomly generated
+#' ##feature presence/absence (1, 0) data.frame.
+#'
+#' #Generate a random phylogenetic tree:
+#' n_tip <- 10
+#' tree <- rtree(n_tip)
+#'
+#' #Generate 10 randomly distributed features (rows = features, columns =
+#' #phylogenetic tree tips):
+#' tab <- replicate(10,
+#'                  sapply(10, function(x) sample(c(0,1), x, replace=TRUE)),
+#'                  simplify='matrix') %>%
+#'   t() %>%
+#'   data.frame(check.names=FALSE) %>%
+#'   rename_with(function(x) tree$tip.label[as.numeric(x)])
+#'
+#' #Note: columns should be labelled by tip.label of the tree. This also means that
+#' #all of the tips in the tree should have an associated feature presence absence
+#' #state. If tips lack this information, the tree should be parsed (see
+#' #ape::keep.tip()).
+#'
+#'
+#' #Run recpd_calc() without calculating additional measures (span, cluster,
+#' #longevity, lability):
+#' recpd_calc(tree, tab, calc=FALSE)
+#'
+#' #Run recpd_calc() with additional measures calculated:
+#' recpd_calc(tree, tab, calc=TRUE)
 #'
 #' @author Cedoljub Bundalovic-Torma
 #'
