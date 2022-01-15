@@ -79,14 +79,14 @@ plt_recpd <-  function(res,
   #Conditional statements to check/test if input arguments are proper:
   try(if(class(res) != 'data.frame') stop('Results from recpd_calc() cannot be found.'))
 
-  try(if(!feat %in% names(attr(res, map[1])) | !feat %in% as.numeric(names(attr(res, map[1]))))
-      stop('Please provide a valid feature name/index.'))
+  #Check if selected features can be found in the recpd results data.frame:
+  stopifnot('Please provide a valid feature name/index.'=feat %in% names(attr(res, map[1])))
 
   #The phylogenetic tree:
   tree <- attr(res, 'tree')
 
   #The tip/node/branch state mappings assigned by recpd_calc():
-  br_l <- attr(res, map[1])[[as.character(feat)]]
+  br_l <- attr(res, map[1])[[feat]]
 
   #Assign labels for node/branch/tip states:
   labs <- array(c('Absence', 'Loss', 'Gain', 'Split'),
@@ -626,7 +626,7 @@ plt_faith <- function(res,
   #with the tree as attributes of a new object and send it to plt_tree_f:
   new_res <- structure(res[feat, ], anc_new = ns_tmp, tree=tree, class='data.frame')
 
-  gt <- plt_recpd(new_res, feat) +
+  gt <- plt_recpd(new_res, as.character(feat)) +
     ggplot2::labs(title=paste0('Faith\'s PD = ', signif(f, 3)))
 
   #labs(title=paste0('Faith\'s PD\n', 'With Root = ', signif(f[1,1], 3), '\n', 'Without Root = ', signif(f[2,1], 3)))

@@ -19,6 +19,7 @@ knitr::opts_chunk$set(
 #Note this command is used to load the RecPD package during development:
 
 #library(devtools)
+setwd('/media/cedatorma/Seagate Expansion Drive/psy_project/t3se_clusters/recpd/recpd_pkg/recpd/')
 devtools::load_all()
 
 #Alternatively, install the package using library():
