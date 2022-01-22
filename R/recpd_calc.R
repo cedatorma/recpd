@@ -740,7 +740,7 @@ node_ident5 <- function(tree, node_state, branch_state){
       #Also assign any tips to absent states if they appear on a absent lineage
       #Descended directly from the root:
       if(bs[length(j)] == 0 & length(k) == 0){
-        tip_state[i] <- -1
+        tip_state[as.character(i)] <- -1
       }
     }
 
@@ -849,7 +849,7 @@ prune_state <- function(tree, states){
                         function(x) length(which(x <= ape::Ntip(tree)))))
 
   #Condition for checking single gain nodes:
-  if(length(gain_n) == 1 & length(nt_d) == 2) gain_n = NULL else gain_n <- gain_n[which(nt_d != 2)]
+  if(length(gain_n) == 1 & length(nt_d) == 2) gain_n <- NULL else gain_n <- gain_n[which(nt_d != 2)]
 
   #Need a condition for pruning lineages descended from the root...
   #For now, just remove them:
@@ -878,7 +878,7 @@ prune_state <- function(tree, states){
 
 
         #If the current node is a split (one child node is connected with a
-        #present, the other absent), then remove the given node, and reassign
+        #present, the other absent branch), then remove the given node, and reassign
         #its branch state based on the anestral branch-state leading to it:
         if(length(branch_pres) == 1){
           #Remove the current node:
@@ -907,13 +907,17 @@ prune_state <- function(tree, states){
           n <- edge[c_branch[branch_pres], 2]
         }
         #If the children descendant nodes are both on the present state
-        #lineages, then assign the ancestral node as a gain and its branch as
-        #present (if not root node):
+        #lineages, remove the node, then assign its ancestral node as a gain and
+        #add its branch as present (if not root node):
         else{
           if(n != (ape::Ntip(tree) + 1)){
+            #Add the ancestral node and branch leading to the current node:
             ns_new[as.character(a)] <- 1
             bs_new[a_branch] <- 1
             ns_new <- ns_new[order(as.numeric(names(ns_new)))]
+
+            #Remove the current node:
+            ns_new <- ns_new[!names(ns_new) %in% as.character(n)]
           }
           break
         }
@@ -925,30 +929,46 @@ prune_state <- function(tree, states){
     #previously inferred loss lineages should be changed to absent state.
 
     #Define a function to update branch state annotations on the tree by
-    #checking all loss state branches and changing them to absent if they are
-    #directly descended from an absent state node:
+    #checking all loss state branches and changing them to the state of their
+    #ancestral branch.
     state_change <- function(n){
-      c <- phangorn::Children(tree, n)
+      #Get the nodepath of the node to the root of the tree:
+      np <- nodepath(tree, n, Ntip(tree) + 1)
 
-      if(length(c) != 0){
-        e <- which(edge[,1] %in% n & edge[,2] %in% c)
+      #Get the edge indicies corresponding to parent - child node pairs from the
+      #root to the given node:
+      e <- which(edge[,2] %in% np[1:(length(np) - 1)] &
+                   edge[,1] %in% np[2:length(np)])
 
-        e <- e[which(bs_new[e] != 1)]
+      #Check if a branch state change occurs between the node to root:
+      i <- which(bs_new[length(e):2] != bs_new[(length(e) - 1):1])
 
-        if(length(e) != 0){
-          #Update branch states
-          bs_new[e] <<- -1
+      #If so , then update the parent and child descendant branche states of the
+      #current node to absent:
+      if(length(i) == 0){
 
-          #Also update tip states if descendants are tips:
-          t <- which(edge[e,2] <= ape::Ntip(tree))
+        c <- phangorn::Children(tree, n)
 
-          #Note, have convert the edge-tip indicies to their appropriate tip numbers;
-          if(length(t) != 0) ts_new[as.character(edge[e[t],2])] <<- -1
+        if(length(c) != 0){
+          e <- which(edge[,1] %in% n & edge[,2] %in% c)
 
-          for(n in c){
-            state_change(n)
+          e <- e[which(bs_new[e] != 1)]
+
+          if(length(e) != 0){
+            #Update branch states
+            bs_new[e] <<- -1
+
+            #Also update tip states if descendants are tips:
+            t <- which(edge[e,2] <= ape::Ntip(tree))
+
+            #Note, have convert the edge-tip indicies to their appropriate tip numbers;
+            if(length(t) != 0) ts_new[as.character(edge[e[t],2])] <<- -1
+
+            for(n in c){
+              state_change(n)
+            }
+            #print(c)
           }
-          #print(c)
         }
       }
     }
@@ -960,10 +980,18 @@ prune_state <- function(tree, states){
     #identified to the corresponding state of their ancestral branches:
     if(length(which(r_state == -1)) != 0){
       for(n in rm_nodes){
-        state_change(n)
+        if(!n %in% ape::Ntip(tree) + 1) state_change(n)
       }
     }
   }
+
+  #Remove any of the remaining gain nodes which have a pair of present state
+  #child descendant branches:
+
+  if(length(rm_n)) ns_new <- ns_new[!names(ns_new) %in% rm_n]
+
+  #if(length(rm_nodes) != 0) ns_new <- ns_new[-which(names(ns_new) %in% rm_nodes)]
+  #print(rm_nodes)
 
   return(list(tip_state = ts_new,
               node_state = ns_new,
