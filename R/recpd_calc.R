@@ -990,7 +990,7 @@ prune_state <- function(tree, states){
 
   #if(length(rm_n)) ns_new <- ns_new[!names(ns_new) %in% rm_n]
 
-  if(length(rm_nodes) != 0) ns_new <- ns_new[-which(names(ns_new) %in% rm_nodes)]
+  #if(length(rm_nodes) != 0) ns_new <- ns_new[-which(names(ns_new) %in% rm_nodes)]
   #print(rm_nodes)
 
   return(list(tip_state = ts_new,
