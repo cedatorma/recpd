@@ -883,7 +883,7 @@ prune_state <- function(tree, states){
         if(length(branch_pres) == 1){
           #Remove the current node:
           rm_n <- which(names(ns_new) == as.character(n))
-          ns_new <- ns_new[-rm_n]
+          if(length(rm_n) != 0) ns_new <- ns_new[-rm_n]
 
           #Store the initially annotated gain nodes which will be removed to
           #later update their descendant branches:
@@ -933,7 +933,7 @@ prune_state <- function(tree, states){
     #ancestral branch.
     state_change <- function(n){
       #Get the nodepath of the node to the root of the tree:
-      np <- nodepath(tree, n, Ntip(tree) + 1)
+      np <- ape::nodepath(tree, n, ape::Ntip(tree) + 1)
 
       #Get the edge indicies corresponding to parent - child node pairs from the
       #root to the given node:
@@ -988,7 +988,7 @@ prune_state <- function(tree, states){
   #Remove any of the remaining gain nodes which have a pair of present state
   #child descendant branches:
 
-  if(length(rm_n)) ns_new <- ns_new[!names(ns_new) %in% rm_n]
+  #if(length(rm_n)) ns_new <- ns_new[!names(ns_new) %in% rm_n]
 
   #if(length(rm_nodes) != 0) ns_new <- ns_new[-which(names(ns_new) %in% rm_nodes)]
   #print(rm_nodes)
