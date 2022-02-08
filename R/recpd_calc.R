@@ -995,36 +995,42 @@ prune_state <- function(tree, states){
 
   if(length(which(bs_new == 0)) != 0){
 
-    #Get the loss nodes:
+    #Get the loss nodes
     loss_n <- as.numeric(names(ns_new[which(ns_new == 0)]))
 
-
-    #Check that all loss branch states parent-child nodes are found in the
-    #descendant nodes of the loss lineages. If any aren't, set their states to
-    #absent:
-
-    #Merge loss nodes as well as all their descendant nodes together:
-    l_d <- c(loss_n, unlist(phangorn::Descendants(tree, loss_n, 'all')))
-
-    #Get loss state branches:
-    b_l <- which(bs_new == 0)
-
-
-    #Check if each parent - child node pair of the loss state branches is found
-    #in the array of loss node descendants:
-    rm_e <- which(sapply(edge[b_l,],
-                        function(x){
-                          length(which(x %in% l_d))
-                        }) == 0)
-
-    if(length(rm_e) != 0){
-      bs_new[b_l[rm_e]] <- -1
-
-      #Also get tip descendants:
-      rm_t <- which(edge[b_l[rm_e],2] <= ape::Ntip(tree))
-
-      ts_new[as.character(edge[b_l[rm_e][rm_t], 2])] <- -1
+    #If loss state branches exist, but no loss state nodes,
+    #then assign these branches to absent:
+    if(length(loss_n) == 0 ){
+      bs_new[which(bs_new == 0)] <- -1
     }
+    #Otherwise, if any loss state nodes exist:
+    if(length(loss_n) != 0){
+      #Check that all loss branch states parent-child nodes are found in the
+      #descendant nodes of the loss lineages. If any aren't, set their states to
+      #absent:
+
+      #Merge loss nodes as well as all their descendant nodes together:
+      l_d <- c(loss_n, unlist(phangorn::Descendants(tree, loss_n, 'all')))
+
+      #Get loss state branches:
+      b_l <- which(bs_new == 0)
+
+
+      #Check if each parent - child node pair of the loss state branches is found
+      #in the array of loss node descendants:
+      rm_e <- which(sapply(edge[b_l,],
+                          function(x){
+                            length(which(x %in% l_d))
+                          }) == 0)
+
+      if(length(rm_e) != 0){
+        bs_new[b_l[rm_e]] <- -1
+
+        #Also get tip descendants:
+        rm_t <- which(edge[b_l[rm_e],2] <= ape::Ntip(tree))
+
+        ts_new[as.character(edge[b_l[rm_e][rm_t], 2])] <- -1
+      }
   }
 
   #Old:
