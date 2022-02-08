@@ -1000,11 +1000,11 @@ prune_state <- function(tree, states){
 
     #If loss state branches exist, but no loss state nodes,
     #then assign these branches to absent:
-    if(length(loss_n) == 0 ){
+    if(length(loss_n) == 0){
       bs_new[which(bs_new == 0)] <- -1
     }
     #Otherwise, if any loss state nodes exist:
-    if(length(loss_n) != 0){
+    else{
       #Check that all loss branch states parent-child nodes are found in the
       #descendant nodes of the loss lineages. If any aren't, set their states to
       #absent:
@@ -1031,6 +1031,7 @@ prune_state <- function(tree, states){
 
         ts_new[as.character(edge[b_l[rm_e][rm_t], 2])] <- -1
       }
+    }
   }
 
   #Old:
