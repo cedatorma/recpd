@@ -139,6 +139,7 @@ for(i in 1:(Ntip(r_tr)-1)){
 #write.tree(r_tr, './random_tree_10tips.tree')
 #write.table  (pa_l, col.names = TRUE, row.names=FALSE, sep='\t')
 
+
 ```
 
 

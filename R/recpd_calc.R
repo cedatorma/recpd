@@ -902,7 +902,6 @@ prune_state <- function(tree, states){
 
           }
 
-
           #Update the current node to the present state child:
           n <- edge[c_branch[branch_pres], 2]
         }
@@ -943,7 +942,7 @@ prune_state <- function(tree, states){
       #Check if a branch state change occurs between the node to root:
       i <- which(bs_new[length(e):2] != bs_new[(length(e) - 1):1])
 
-      #If so , then update the parent and child descendant branche states of the
+      #If so, then update the parent and child descendant branch states of the
       #current node to absent:
       if(length(i) == 0){
 
@@ -985,6 +984,50 @@ prune_state <- function(tree, states){
     }
   }
 
+
+
+  #Do a bit of cleaning up: After pruning feature gain lineages, sometimes an
+  #orphaned loss lineage may be left behind:
+  #Identify any loss state tips which do not have an associated ancestral loss event node,
+  #If so, change their associated tip and branch states to absent.
+
+  #Or can replace this with a check for removed loss nodes in the code above...
+
+  if(length(which(ns_new == 0)) != 0){
+
+    #Get the loss nodes:
+    loss_n <- as.numeric(names(ns_new[which(ns_new == 0)]))
+
+
+    #Check that all loss branch states parent-child nodes are found in the
+    #descendant nodes of the loss lineages. If any aren't, set their states to
+    #absent:
+
+    #Merge loss nodes as well as all their descendant nodes together:
+    l_d <- c(loss_n, unlist(phangorn::Descendants(tree, loss_n, 'all')))
+
+    #Get loss state branches:
+    b_l <- which(bs_new == 0)
+
+
+    #Check if each parent - child node pair of the loss state branches is found
+    #in the array of loss node descendants:
+    rm_e <- which(sapply(edge[b_l,],
+                        function(x){
+                          length(which(x %in% l_d))
+                        }) == 0)
+
+    if(length(rm_e) != 0){
+      bs_new[b_l[rm_e]] <- -1
+
+      #Also get tip descendants:
+      rm_t <- which(edge[b_l[rm_e],2] <= ape::Ntip(tree))
+
+      ts_new[as.character(edge[b_l[rm_e][rm_t], 2])] <- -1
+    }
+  }
+
+  #Old:
   #Remove any of the remaining gain nodes which have a pair of present state
   #child descendant branches:
 
