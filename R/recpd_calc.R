@@ -993,7 +993,7 @@ prune_state <- function(tree, states){
 
   #Or can replace this with a check for removed loss nodes in the code above...
 
-  if(length(which(ns_new == 0)) != 0){
+  if(length(which(bs_new == 0)) != 0){
 
     #Get the loss nodes:
     loss_n <- as.numeric(names(ns_new[which(ns_new == 0)]))
