@@ -42,7 +42,123 @@ nrecpd_calc <- function(recpd, tree, tip){
 
 #get_max_span() - Finds The Maximum Spanning Trait Distributions (Based on Their Total Sum of Branch Lengths) For A Given Phylogenetic Tree:
 #*Note that span is not adjusted for potential recombination.
+
 get_max_span <- function(tree){
+
+  #tip_dist():
+  #A function for finding the maximum spanning feature distributions (stored as the sum of tree branches at a given feature prevalence):
+
+
+  tip_dist <- function(np){
+    np_tmp <- rev(np)[-1]
+    #Get the tip:
+    t <- rev(np)[1]
+
+    #Check which ancestral nodes haven't been included (n_tally != 2) in the previously found maximum spanning feature distributions:
+    n <- np_tmp[which(!np_tmp %in% n_found[which(n_tally == 2)])]
+
+    #Get the maximum distance between the tip and its ancestral node, keeping in mind to only include unique branches which haven't been previously included in previous maximum spanning distributions  (n_tally != 1). Keep in mind that if there are no nodes, as when a tip is the nearest-neighbour of a tip belonging to a previously identified maximum spanning feature distribution, then use its parent node:
+
+    #If the tip is a descendant of a previously identified maximum spanning feature distribution, then only check the distance between it and its ancestral node, i.e. the first node in its node path which has been seen only once before (n_tally  == 1).
+
+    a <- which(n %in% n_found[which(n_tally == 1)])[1]
+
+    #If this node doesn't exist, then use the most proximal(nearest the root) node of the node path (not required after initialization):
+    #if(length(a) == 0) a <- length(n)
+
+    #If such an ancestral node exists, then get its distance to the tip:
+    #Otherwise, use the most distal node in the node path:
+    max_d <- max(dn[t, n[1:a]])
+
+    #Return the distance of the tip to its deepest ancestral node, along with its nodepath:
+    cbind(max_d = max_d,
+          n = list(as.character(n[1:a])))
+  }
+
+
+  ###
+  #Initialization of variables:
+  ###
+  #Get the root-tip nodepaths for the tree:
+  np <- ape::nodepath(tree)
+
+  #Matrix of node distances:
+  dn <- ape::dist.nodes(tree)
+
+
+  #An array for storing the nodes/branches already found in previous maximum spanning distributions:
+  #Numeric array of nodes for searching:
+  n_found <- (ape::Ntip(tree) + 1) : (ape::Ntip(tree) + ape::Nnode(tree))
+
+  #The corresponding array which keeps a tally of nodes found in maximum spanning feature distributions:
+  n_tally <- array(rep(0, length(n_found)), dimnames = list(n_found))
+
+
+  #An array for storing the corresponding maximum spanning distances of feature distributions over the entire range of prevalence:
+  max_span <- rep(0, ape::Ntip(tree))
+
+  #Copy np to a a temporary variable which will be successively shortened as
+  #prevalence increases:
+
+  np_tmp <- np
+
+
+  #Initilization (feature prevalence == 1):
+
+  #Find the tip having the maximum distance to the root node:
+  max_d <- sort(dn[-n_found, n_found[1]], decreasing = TRUE)[1]
+
+  #Extract the tip/np index and its sum of branch-lengths to the root:
+  i <- as.numeric(names(max_d))
+  max_d <- as.numeric(max_d)
+
+  #Get the nodepath:
+  n <- as.character(rev(np[[i]])[-1])
+
+  #Use its nodepath to update n_tally:
+  n_tally[n] <- 1
+
+  #Use its distance to update max_span:
+  max_span[1] <- max_d
+
+  #Remove the corresponding nodepath from np_tmp:
+  np_tmp <- np_tmp[-i]
+
+
+  #Now iterate through the remaining range of feature prevalence: 2 .. Ntip(tree)
+
+  for(p in 2:ape::Ntip(tree)){
+
+    #Run the tip lineage distance calculation:
+    res <- sapply(np_tmp, tip_dist)
+
+
+    #Identify the tip/index of the np list with maximum distance to its ancestral node:
+    i <- which(unlist(res[1,]) == max(unlist(res[1,])))[1]
+
+    #Get the maximum distance:
+    max_d <- unlist(res[1,i])
+
+    #Get the nodepath leading to it:
+    n <- unlist(res[2,i])
+
+    #Increment n_tally using the nodepath of the given tip (only if its distance is the maximum of all other remaining tips):
+    n_tally[n] <- n_tally[n] + 1
+
+    #Remove the selected nodepath from np:
+    np_tmp <- np_tmp[-i]
+
+    #Update max_span by adding the maximum tip-ancestral node distance to that of the previously stored value:
+    max_span[p] <- max_span[p - 1] + max_d
+
+    #Continue until all tips/prevalence have been examined.
+  }
+
+  return(as.list(array(max_span, dimnames = list(1:Ntip(tree)))))
+}
+
+#The old function:
+get_max_span_old <- function(tree){
 
   #Start with a full tree (P = Ntip),
   #Remove a single tip and its accompanying ancestral branch, and recalculate the sum of branch lengths.
@@ -115,7 +231,9 @@ span_calc <- function(tree, t, max_span){
 
     br_p <- sum(tree$edge.length[i])
 
-    return(br_p/max_span[[as.character(p)]]$max_span)
+    return(br_p/max_span[[as.character(p)]])
+    #return(br_p/max_span[[as.character(p)]]$max_span)
+
   }
   else{
     if(p == 1){
