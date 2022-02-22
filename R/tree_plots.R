@@ -106,7 +106,7 @@ plt_recpd <-  function(res,
   nodecol <- dplyr::tibble(node=c(1:ape::Ntip(tree), as.numeric(names(br_l$node_state))),
                            node_col=as.numeric(c(br_l$tip_state, br_l$node_state)))
 
-  tr <- dplyr::as_tibble(tree)
+  tr <- tidytree::as_tibble(tree)
 
   tr <- dplyr::full_join(tr, branchcol, by=c('parent' = 'parent', 'node' = 'node'))
   tr <- dplyr::full_join(tr, nodecol, by=c('node'='node'))
@@ -461,7 +461,7 @@ plt_recpdcor <- function(res,
 
   b_t <- data.frame(cbind(node=tree$edge[,2], branch_col=apply(b, 2, sum)))
 
-  tr <- dplyr::full_join(dplyr::as_tibble(tree), b_t)
+  tr <- dplyr::full_join(tidytree::as_tibble(tree), b_t)
 
   #Assign phylogenetic tree branch lengths into bins (by quantiles):
   #br_bins <- cut(tr$branch.length, seq(floor(min(signif(tr$branch.length, 1), na.rm=TRUE)), ceiling(max(signif(tr$branch.length, 1), na.rm=TRUE)), 0.1), include.lowest=TRUE)
