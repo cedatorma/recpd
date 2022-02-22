@@ -114,7 +114,7 @@ plt_recpd <-  function(res,
   #Assign branch lengths to stroke width aesthetic:
   #Group branch lengths into bins based on quantiles.
   branch_bins <- cut(tr$branch.length,
-                     stats::quantile(tr$branch.length, na.rm=TRUE),
+                     unique(stats::quantile(tr$branch.length, na.rm=TRUE)),
                      include.lowest=TRUE)
   b_size <- lapply(strsplit(as.character(levels(branch_bins)),  ','), function(x) as.numeric(sub('[\\(\\)\\[\\]]', '', x, perl=TRUE)))
 
