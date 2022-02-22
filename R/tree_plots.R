@@ -174,9 +174,11 @@ plt_recpd <-  function(res,
 
   #If tree.format = 'willow', then add branch-width aesthetics:
   if(tree.format[1] == 'willow'){
-    gt <- gt + ggplot2::scale_size_continuous(name='Branch Length',
-                                              labels=levels(branch_bins),
-                                              range=c(0.25, 1.0),
+    gt <- gt +
+      ggplot2::scale_size_continuous(name='Branch Length',
+                                              labels = levels(branch_bins),
+                                              breaks = sort(unique(as.numeric(branch_bins))),
+                                              range=c(0.25, 1),
                                               guide=ggtree::guide_legend(order=1))
   }
 
@@ -466,7 +468,9 @@ plt_recpdcor <- function(res,
   #Assign phylogenetic tree branch lengths into bins (by quantiles):
   #br_bins <- cut(tr$branch.length, seq(floor(min(signif(tr$branch.length, 1), na.rm=TRUE)), ceiling(max(signif(tr$branch.length, 1), na.rm=TRUE)), 0.1), include.lowest=TRUE)
 
-  br_bins <- cut(tr$branch.length, signif(stats::quantile(tr$branch.length, na.rm=TRUE), 2), include.lowest=TRUE)
+  br_bins <- cut(tr$branch.length,
+                 signif(unique(stats::quantile(tr$branch.length, na.rm=TRUE), 2)),
+                 include.lowest=TRUE)
 
   #Format the branch length bins to be more legible.
   bin_level <- stringr::str_match_all(levels(br_bins), '([\\(\\[])(.*),(.*)(])')
