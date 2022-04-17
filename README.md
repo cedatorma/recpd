@@ -24,7 +24,7 @@ For a more detailed description of the RecPD methodology, and its
 advantage over using simple Prevalence to measure feature diversity in
 microbial population genetics studies, see
 [Bundalovic-Torma C. & Guttman D.
-(2021)](https://www.biorxiv.org/content/10.1101/2021.10.01.462747v1).
+(2021)](https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1009899).
 
 ## Installation
 
