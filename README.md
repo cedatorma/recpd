@@ -21,7 +21,8 @@ RecPD also provides functions for:
   - **RecPDcor** - a measure of pairwise feature lineage correlation.
 
 For a more detailed description of the RecPD methodology, and its
-advantage over using simple Prevalence in measure feature diversity, see
+advantage over using simple Prevalence to measure feature diversity in
+microbial population genetics studies, see
 [Bundalovic-Torma C. & Guttman D.
 (2021)](https://www.biorxiv.org/content/10.1101/2021.10.01.462747v1).
 
@@ -37,4 +38,4 @@ devtools::install_github("cedatorma/recpd")
 
 ## Tutorial and Usage Examples
 
-See the vignette in the ./vignettes directory.
+See the ./vignettes directory for a tutorial providing a general overview of RecPD and the various functionalities offered in the package.
