@@ -23,8 +23,8 @@ RecPD also provides functions for:
 For a more detailed description of the RecPD methodology, and its
 advantage over using simple Prevalence to measure feature diversity in
 microbial population genetics studies, see
-[Bundalovic-Torma C. & Guttman D.
-(2021)](https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1009899).
+[Bundalovic-Torma C. & Guttman D. PLoS CompBiol.
+(2022)](https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1009899).
 
 ## Installation
 
